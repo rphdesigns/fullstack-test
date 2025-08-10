@@ -1,0 +1,87 @@
+name: CDK + Angular CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install AWS CDK CLI
+        run: npm install -g aws-cdk@latest
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: CDK bootstrap
+        run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ secrets.AWS_REGION }} || true
+
+      - name: CDK deploy (infrastructure)
+        run: cdk deploy --all --require-approval=never --outputs-file cdk-outputs.json
+
+      - name: Read outputs
+        id: outputs
+        run: |
+          cat cdk-outputs.json
+          API_ENDPOINT=$(jq -r 'to_entries[] | .value[] | select(.OutputKey=="HttpApiEndpoint") | .OutputValue' cdk-outputs.json || true)
+          SITE_BUCKET=$(jq -r 'to_entries[] | .value[] | select(.OutputKey=="SiteBucketName") | .OutputValue' cdk-outputs.json || true)
+          DIST_DOMAIN=$(jq -r 'to_entries[] | .value[] | select(.OutputKey=="CloudFrontDomain") | .OutputValue' cdk-outputs.json || true)
+          echo "api=$API_ENDPOINT" >> $GITHUB_OUTPUT
+          echo "bucket=$SITE_BUCKET" >> $GITHUB_OUTPUT
+          echo "dist=$DIST_DOMAIN" >> $GITHUB_OUTPUT
+
+      - name: Build frontend (replace API base)
+        working-directory: frontend
+        run: |
+          # Inject API base into window global used by the service (simple approach)
+          API_BASE="${{ steps.outputs.outputs_api }}" || true
+          # try github output:
+          API_BASE="${{ steps.outputs.outputs_api }}" || true
+          if [ -z "${{ steps.outputs.api }}" ]; then
+            API_BASE="${{ steps.outputs.api }}"
+          fi
+          echo "window.__API_BASE__='${{ steps.outputs.api }}';" > src/app/api-shim.js
+          npm run build -- --configuration production
+
+      - name: Sync frontend to S3
+        run: |
+          BUILD_DIR=$(ls frontend/dist | head -n1)
+          aws s3 sync "frontend/dist/$BUILD_DIR" "s3://${{ steps.outputs.bucket }}" --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          DIST_DOMAIN="${{ steps.outputs.dist }}"
+          DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?DomainName=='${DIST_DOMAIN}'].Id" --output text)
+          aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"

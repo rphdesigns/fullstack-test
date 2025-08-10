@@ -1,0 +1,17 @@
+<h1>Todo (CDK + Angular)</h1>
+
+<div>
+  <input [(ngModel)]="newTitle" placeholder="New item title" />
+  <button (click)="add()">Add</button>
+</div>
+
+<ul>
+  <li *ngFor="let it of items">
+    <input type="checkbox" [checked]="it.completed" (change)="toggle(it)" />
+    <span *ngIf="!editing[it.id]">{{it.title}}</span>
+    <input *ngIf="editing[it.id]" [(ngModel)]="editTitle[it.id]" />
+    <button *ngIf="!editing[it.id]" (click)="startEdit(it)">Edit</button>
+    <button *ngIf="editing[it.id]" (click)="saveEdit(it)">Save</button>
+    <button (click)="remove(it)">Delete</button>
+  </li>
+</ul>
