@@ -49,7 +49,7 @@ class WebStack(Stack):
             "SiteDistribution",
             default_root_object="index.html",
             default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3BucketOrigin(site_bucket, origin_access_identity=oai),
+                origin=origins.S3BucketOrigin(site_bucket, access_identity=oai),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
             ),
             domain_names=[WEB_DOMAIN],
