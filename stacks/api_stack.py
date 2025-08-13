@@ -12,8 +12,8 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-API_DOMAIN = "api.example.com"  # Replace with your actual API domain
-HOSTED_ZONE_NAME = "example.com"  # Replace with your actual hosted zone name
+HOSTED_ZONE_NAME = "app-rphdesigns.com"  # Replace with your actual hosted zone name
+API_DOMAIN = "api.app-rphdesigns.com"  # Replace with your actual API domain
 
 
 class ApiStack(Stack):
@@ -93,6 +93,6 @@ class ApiStack(Stack):
             "ApiAliasRecord",
             zone=hosted_zone,
             record_name=API_DOMAIN.split(".")[0],
-            target=route53.RecordTarget.from_alias(route53_targets.ApiGatewayv2Domain(api_domain_obj))
+            target=route53.RecordTarget.from_alias(route53_targets.ApiGatewayDomain(api_domain_obj))
         )
         CfnOutput(self, "ApiCustomDomain", value=API_DOMAIN)
