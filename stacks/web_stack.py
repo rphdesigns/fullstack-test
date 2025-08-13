@@ -6,7 +6,7 @@ from aws_cdk import (
     aws_cloudfront_origins as origins,
     aws_route53 as route53,
     aws_certificatemanager as acm,
-    aws_route53_targets as route53_targets
+    aws_route53_targets as targets
 )
 from constructs import Construct
 
@@ -49,7 +49,7 @@ class WebStack(Stack):
             "SiteDistribution",
             default_root_object="index.html",
             default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3BucketOrigin(site_bucket, access_identity=oai),
+                origin=origins.S3BucketOrigin.with_origin_access_identity(site_bucket, origin_access_identity=oai),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
             ),
             domain_names=[WEB_DOMAIN],
@@ -57,14 +57,15 @@ class WebStack(Stack):
         )
 
         # Route53 mapping
-        route53.ARecord(
+        route53.CfnRecordSet(
             self,
             "SiteAliasRecord",
-            zone=hosted_zone,
-            record_name=WEB_DOMAIN.split(".")[0],
-            target=route53.RecordTarget.from_values(
-                distribution.domain_name,
-                "Z034881214JDR3KG6B8DU"  # CloudFront hosted zone ID (static for all distributions)
+            hosted_zone_id=hosted_zone.hosted_zone_id,
+            name=WEB_DOMAIN,
+            type="A",
+            alias_target=route53.CfnRecordSet.AliasTargetProperty(
+                dns_name=distribution.distribution_domain_name,
+                hosted_zone_id=hosted_zone.hosted_zone_id # Standard CloudFront hosted zone ID
             )
         )
 

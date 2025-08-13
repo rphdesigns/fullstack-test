@@ -8,7 +8,7 @@ from aws_cdk import (
     aws_apigatewayv2 as apigwv2,
     aws_apigatewayv2_integrations as apigwv2_integrations,
     aws_certificatemanager as acm,
-    aws_route53_targets as route53_targets,
+    aws_route53_targets as route53_targets
 )
 from constructs import Construct
 
@@ -88,11 +88,16 @@ class ApiStack(Stack):
         api_domain_obj = apigwv2.DomainName(self, "ApiDomain", domain_name=API_DOMAIN, certificate=cert)
         apigwv2.ApiMapping(self, "ApiMapping", domain_name=api_domain_obj, api=http_api, stage=http_api.default_stage)
 
-        route53.ARecord(
+        # Route53 mapping
+        route53.CfnRecordSet(
             self,
             "ApiAliasRecord",
-            zone=hosted_zone,
-            record_name=API_DOMAIN.split(".")[0],
-            target=route53.RecordTarget.from_alias(route53_targets.ApiGatewayDomain(api_domain_obj))
+            hosted_zone_id=hosted_zone.hosted_zone_id,
+            name=API_DOMAIN,
+            type="A",
+            alias_target=route53.CfnRecordSet.AliasTargetProperty(
+                dns_name=api_domain_obj.name,
+                hosted_zone_id=hosted_zone.hosted_zone_id  # Standard CloudFront hosted zone ID
+            )
         )
         CfnOutput(self, "ApiCustomDomain", value=API_DOMAIN)
