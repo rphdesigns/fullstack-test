@@ -5,8 +5,8 @@ from aws_cdk import (
     aws_route53 as route53,
     aws_dynamodb as dynamodb,
     aws_lambda as _lambda,
-    aws_apigateway as api_gw,
-    aws_apigatewayv2_integrations_alpha as api_gw_integrations,
+    aws_apigatewayv2 as apigwv2,
+    aws_apigatewayv2_integrations as apigwv2_integrations,
     aws_certificatemanager as acm,
     aws_route53_targets as route53_targets,
 )
@@ -52,22 +52,22 @@ class ApiStack(Stack):
         table.grant_read_write_data(handler)
 
         # HTTP API
-        http_api = api_gw.HttpApi(
+        http_api = apigwv2.HttpApi(
             self,
             "HttpApi",
             api_name="ItemsHttpApi"
         )
 
-        integration = api_gw_integrations.HttpLambdaIntegration("LambdaIntegration", handler)
+        integration = apigwv2_integrations.HttpLambdaIntegration("LambdaIntegration", handler)
         # routes
         http_api.add_routes(
             path="/items",
-            methods=[api_gw.HttpMethod.GET, api_gw.HttpMethod.POST],
+            methods=[apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST],
             integration=integration
         )
         http_api.add_routes(
             path="/items/{id}",
-            methods=[api_gw.HttpMethod.GET, api_gw.HttpMethod.PUT, api_gw.HttpMethod.DELETE],
+            methods=[apigwv2.HttpMethod.GET, apigwv2.HttpMethod.PUT, apigwv2.HttpMethod.DELETE],
             integration=integration
         )
 
@@ -85,8 +85,8 @@ class ApiStack(Stack):
             domain_name=API_DOMAIN,
             validation=acm.CertificateValidation.from_dns(hosted_zone)
         )
-        api_domain_obj = api_gw.DomainName(self, "ApiDomain", domain_name=API_DOMAIN, certificate=cert)
-        api_gw.HttpApiMapping(self, "ApiMapping", domain_name=api_domain_obj, api=http_api, stage=http_api.default_stage)
+        api_domain_obj = apigwv2.DomainName(self, "ApiDomain", domain_name=API_DOMAIN, certificate=cert)
+        apigwv2.ApiMapping(self, "ApiMapping", domain_name=api_domain_obj, api=http_api, stage=http_api.default_stage)
 
         route53.ARecord(
             self,
