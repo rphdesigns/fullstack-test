@@ -10,8 +10,8 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-HOSTED_ZONE_NAME = "example.com"  # Replace with your actual hosted zone name
-WEB_DOMAIN = "www.example.com"  # Replace with your actual web domain
+HOSTED_ZONE_NAME = "app-rphdesigns.com"  # Replace with your actual hosted zone name
+WEB_DOMAIN = "api.app-rphdesigns.com"  # Replace with your actual API domain
 
 
 class WebStack(Stack):
@@ -41,8 +41,7 @@ class WebStack(Stack):
             self,
             "CloudFrontCert",
             domain_name=WEB_DOMAIN,
-            validation=acm.CertificateValidation.from_dns(hosted_zone),
-            region="us-east-1"  # CloudFront requires certs in us-east-1
+            validation=acm.CertificateValidation.from_dns(hosted_zone)
         )
 
         distribution = cloudfront.Distribution(
